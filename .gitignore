@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+
+# Local trade data — personal, never push this
+*.db
+
+# Streamlit credentials
+.streamlit/credentials.toml
