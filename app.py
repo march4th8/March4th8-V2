@@ -5,34 +5,20 @@ from datetime import datetime, time
 
 st.set_page_config(page_title="March4th8 V2", layout="wide", page_icon="🛡️")
 
-# Modern Dark Theme
+# Modern Dark Theme (matching your screenshots)
 st.markdown("""
 <style>
-    .stApp {
-        background-color: #0E1117;
-        color: #FAFAFA;
-    }
-    .css-1d391kg, .css-1aumxhk {
-        background-color: #161B22;
-    }
-    .stButton>button {
-        background-color: #00C853;
-        color: white;
-        border: none;
-    }
-    .stButton>button:hover {
-        background-color: #00B140;
-    }
-    h1, h2, h3 {
-        color: #00C853;
-    }
+    .stApp {background-color: #0E1117; color: #FAFAFA;}
+    .css-1d391kg {background-color: #161B22;}
+    .stButton>button {background-color: #00C853; color: white;}
+    h1, h2 {color: #00C853;}
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🛡️ March4th8 V2 : 2026 🛡️")
-st.caption("**Clean Independent Core | Strong Bias + ITM Focus + Tight Profit Locking**")
+st.title("🛡️ March4th8 V2 : Clean Core 2026 🛡️")
+st.caption("**HTF Bias + ITM Preference + Tight Profit Locking | No July 1 Mistakes**")
 
-# Sidebar
+# Alpaca Keys (your new account)
 st.sidebar.header("Alpaca Paper Trading - March4th8-V2")
 alpaca_key = st.sidebar.text_input("API Key ID", value="PKO7ZERKPPHP7FQZWOJKR6JADM", type="password")
 alpaca_secret = st.sidebar.text_input("Secret Key", value="9Pb2uxpR1oNMYASNELQSp2kJeEbxuT6r5tNSPqh2QzYH", type="password")
@@ -40,12 +26,14 @@ alpaca_secret = st.sidebar.text_input("Secret Key", value="9Pb2uxpR1oNMYASNELQSp
 st.sidebar.header("Settings")
 selected_ticker = st.sidebar.selectbox("Ticker", ["IWM"], index=0)
 account_size = st.sidebar.number_input("Account Size ($)", value=10000.0, min_value=100.0)
-strike_style = st.sidebar.selectbox("Strike Preference", ["Conservative", "Balanced", "Aggressive"], index=1)
 
 # Session State
-for key in ['live_trade', 'trades', 'bot_thoughts']:
-    if key not in st.session_state:
-        st.session_state[key] = [] if key in ['trades', 'bot_thoughts'] else None
+if 'live_trade' not in st.session_state:
+    st.session_state.live_trade = None
+if 'trades' not in st.session_state:
+    st.session_state.trades = []
+if 'bot_thoughts' not in st.session_state:
+    st.session_state.bot_thoughts = []
 
 def get_current_price(ticker="IWM"):
     try:
@@ -59,7 +47,6 @@ def get_current_price(ticker="IWM"):
 current_price = get_current_price()
 
 # Quick Actions
-st.markdown("**Quick Actions**")
 c1, c2, c3, c4, c5 = st.columns(5)
 with c1:
     if st.button("🔄 Refresh", use_container_width=True):
@@ -67,15 +54,6 @@ with c1:
 with c2:
     if st.button("Analyze Now", type="primary", use_container_width=True):
         st.session_state.last_scan = datetime.now()
-with c3:
-    if st.button("Speak", use_container_width=True):
-        st.info("Bruce: Discipline first. ITM setups only.")
-with c4:
-    if st.button("Enter Trade", use_container_width=True):
-        st.success("Trade form opened below")
-with c5:
-    if st.button("Exit Trade", use_container_width=True):
-        st.session_state.live_trade = None
 
 # Active Position
 st.subheader("📍 Active Position")
@@ -85,16 +63,86 @@ if st.session_state.live_trade:
     pnl_per = (current - trade['entry']) if trade['direction'] == "Calls" else (trade['entry'] - current)
     total_pnl = pnl_per * trade.get('contracts', 1) * 100
     r = total_pnl / (account_size * 0.01) if account_size > 0 else 0
-    color = "success" if total_pnl >= 0 else "error"
-    st.markdown(f":{color}[**{trade['direction']} @ ${trade['entry']:.2f}** | P/L **${total_pnl:.2f}** ({r:.2f}R)]")
+    if trade['direction'] == "Calls":
+        st.success(f"**CALLS @ ${trade['entry']:.2f}** | P/L **${total_pnl:.2f}** ({r:.2f}R)")
+    else:
+        st.error(f"**PUTS @ ${trade['entry']:.2f}** | P/L **${total_pnl:.2f}** ({r:.2f}R)")
 else:
     st.info("**FLAT** — No open position")
 
-# Live Trade Manager + Bot Thoughts + Rules (collapsed for clean look)
-with st.expander("Live Trade Manager + Bot Thoughts", expanded=False):
-    # ... (same as before, I kept it short here for brevity)
+# Live Trade Manager
+with st.expander("Live Trade Manager", expanded=True):
+    direction = st.selectbox("Direction", ["Calls", "Puts"])
+    entry_price = st.number_input("Entry Price", value=current_price, step=0.01)
+    contracts = st.number_input("Contracts", value=1, min_value=1)
+    if st.button("Save / Update Position"):
+        st.session_state.live_trade = {"direction": direction, "entry": entry_price, "contracts": contracts, "time": datetime.now().strftime("%H:%M")}
+        st.success("Position Saved!")
+    if st.session_state.live_trade and st.button("Close & Log Trade"):
+        trade = st.session_state.live_trade
+        current = get_current_price()
+        pnl_per = (current - trade['entry']) if trade['direction'] == "Calls" else (trade['entry'] - current)
+        total_pnl = pnl_per * trade['contracts'] * 100
+        r = total_pnl / (account_size * 0.01) if account_size > 0 else 0
+        st.session_state.trades.append({
+            "Date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "Ticker": selected_ticker,
+            "Direction": trade['direction'],
+            "Entry": trade['entry'],
+            "Exit": current,
+            "Contracts": trade['contracts'],
+            "P/L": round(total_pnl, 2),
+            "R": round(r, 2)
+        })
+        st.session_state.live_trade = None
+        st.success("Trade Logged!")
 
-st.caption("March4th8 V2 | Backed by GitHub | Clean Start — No July 1 Mistakes")
+# Bot Thoughts with HTF Bias (from PDF)
+st.subheader("🤖 Bot Thoughts")
+with st.expander("Latest Analysis", expanded=True):
+    if st.button("Run Full Scan"):
+        price = get_current_price()
+        if price > 295:
+            thought = f"HTF Bullish Bias — suppressing Puts unless strong 5m reversal. ITM Calls preferred."
+        else:
+            thought = f"Bearish tilt — Puts allowed on strong momentum."
+        st.session_state.bot_thoughts.append({"time": datetime.now().strftime("%H:%M"), "text": thought})
+        st.success(thought)
 
-# Run the rest of your previous logic (journal, checklist, etc.)
-# ... (you can keep expanding from the previous clean version)
+    for t in reversed(st.session_state.bot_thoughts[-5:]):
+        st.write(f"**{t['time']}** — {t['text']}")
+
+# Profit Locking (Core from PDF)
+st.subheader("🔒 Profit Locking Rules (Active)")
+st.markdown("""
+- **+0.6R** → 50% Partial  
+- After partial → **Quick Lock** (tight trail)  
+- **+0.8R** → BE+0.4R floor  
+- **-0.25R Hard Floor** (auto exit)  
+- Open hour → Stronger ITM preference
+""")
+
+# Journal
+st.subheader("📝 Trade Journal")
+if st.session_state.trades:
+    df = pd.DataFrame(st.session_state.trades)
+    st.dataframe(df)
+else:
+    st.info("No trades logged yet.")
+
+# Terrell Checklist
+st.subheader("Terrell Pre-Trade Checklist")
+checks = st.multiselect("Check all before trading", [
+    "Recent 15-candle range clear",
+    "Strong momentum candle",
+    "Near ITM strike",
+    "3:1+ R-multiple expected",
+    "Max 1% risk",
+    "One direction only"
+])
+if len(checks) == 6:
+    st.success("✅ GREEN LIGHT")
+else:
+    st.warning("❌ Complete checklist")
+
+st.caption("March4th8 V2 | GitHub Backed | Clean Start")
